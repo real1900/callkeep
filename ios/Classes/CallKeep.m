@@ -190,11 +190,20 @@ static NSObject<CallKeepPushDelegate>* _delegate;
     _delegate = delegate;
 }
 
+// Held for the life of the app: a registry nothing holds is released as
+// voipRegistration returns, and then iOS may never hand over the VoIP token
+// or the call pushes (the Submission app, 2026-11-06: calls that never rang).
+static PKPushRegistry *_voipRegistry;
+
 -(void)voipRegistration
 {
-    PKPushRegistry* voipRegistry = [[PKPushRegistry alloc] initWithQueue:dispatch_get_main_queue()];
-    voipRegistry.delegate = self;
-    voipRegistry.desiredPushTypes = [NSSet setWithObject:PKPushTypeVoIP];
+    if (_voipRegistry != nil) {
+        _voipRegistry.delegate = self;
+        return;
+    }
+    _voipRegistry = [[PKPushRegistry alloc] initWithQueue:dispatch_get_main_queue()];
+    _voipRegistry.delegate = self;
+    _voipRegistry.desiredPushTypes = [NSSet setWithObject:PKPushTypeVoIP];
 }
 
 - (void)pushRegistry:(PKPushRegistry *)registry didUpdatePushCredentials:(PKPushCredentials *)pushCredentials forType:(PKPushType)type {
